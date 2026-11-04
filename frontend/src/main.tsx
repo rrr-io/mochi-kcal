@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { registerSW } from "virtual:pwa-register";
 import { App } from "./App";
 import { ToastProvider } from "./components/Toast";
+import { hideSplash } from "./splash";
 import "./styles.css";
 
 registerSW({ immediate: true });
@@ -14,3 +15,5 @@ createRoot(document.getElementById("root")!).render(
     </ToastProvider>
   </StrictMode>
 );
+
+hideSplash();

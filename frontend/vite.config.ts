@@ -26,7 +26,7 @@ export default defineConfig({
           { src: "/icons/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
       },
-      injectManifest: { globPatterns: ["**/*.{js,css,html,png,svg,woff2}"] },
+      injectManifest: { globPatterns: ["**/*.{js,css,html,png,svg,woff2}"], globIgnores: ["splash/**"] }, // iOS reads launch images itself
     }),
   ],
   server: { proxy: { "/api": "http://localhost:3000" } },
