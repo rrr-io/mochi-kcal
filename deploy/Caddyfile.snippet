@@ -1,0 +1,20 @@
+# Add to /srv/caddy/Caddyfile, then:
+#   docker exec caddy caddy reload --config /etc/caddy/Caddyfile
+mochi.rrriooo.com {
+	encode zstd gzip
+
+	handle /api/* {
+		reverse_proxy mochi-backend:3000
+	}
+
+	handle {
+		root * /srv/mochi-kcal
+		# service worker, html and manifest always fresh
+		@nocache path /sw.js /index.html /manifest.webmanifest
+		header @nocache Cache-Control "no-cache"
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		try_files {path} /index.html
+		file_server
+	}
+}

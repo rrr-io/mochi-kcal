@@ -1,0 +1,102 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      # a few seconds; a red test stops the deploy
+      - run: npm test
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend
+          path: frontend/dist
+
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+        working-directory: backend
+      # API tests on a temporary database; a red test stops the deploy
+      - run: npm test
+        working-directory: backend
+      # a single JavaScript file, no native modules: runs the same on the server's arm64
+      - run: npm run build && cp dist/app.mjs ../app.mjs
+        working-directory: backend
+      - uses: actions/upload-artifact@v4
+        with:
+          name: backend
+          path: app.mjs
+
+  deploy:
+    needs: [frontend, backend]
+    runs-on: ubuntu-latest
+    env:
+      TARGET: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontend
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: backend
+          path: .
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+          printf "Host *\n  IdentityFile ~/.ssh/id_deploy\n" > ~/.ssh/config
+
+      - name: Backend
+        env:
+          APP_PASSWORD: ${{ secrets.APP_PASSWORD }}
+          COOKIE_SECRET: ${{ secrets.COOKIE_SECRET }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+        run: |
+          printf "APP_PASSWORD=%s\nCOOKIE_SECRET=%s\nGEMINI_API_KEY=%s\nVAPID_PUBLIC_KEY=%s\nVAPID_PRIVATE_KEY=%s\n" \
+            "$APP_PASSWORD" "$COOKIE_SECRET" "$GEMINI_API_KEY" "$VAPID_PUBLIC_KEY" "$VAPID_PRIVATE_KEY" > .env
+          chmod 600 .env
+          scp app.mjs deploy/docker-compose.yml .env "$TARGET:/opt/mochi-kcal/"
+          rm .env
+          ssh "$TARGET" '
+            set -e
+            cd /opt/mochi-kcal
+            chmod 600 .env
+            docker compose up -d --force-recreate backend
+            docker image prune -f >/dev/null
+          '
+
+      - name: Frontend
+        run: rsync -az --delete dist/ "$TARGET:/srv/mochi-kcal/"

@@ -1,0 +1,32 @@
+services:
+  backend:
+    image: node:22-alpine
+    container_name: mochi-backend
+    restart: unless-stopped
+    command: ["node", "--max-old-space-size=96", "--disable-warning=ExperimentalWarning", "/app/app.mjs"]
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATA_DIR: /data
+      APP_PASSWORD: ${APP_PASSWORD}
+      COOKIE_SECRET: ${COOKIE_SECRET}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: https://mochi.rrriooo.com
+      WATER_HOURS: "7-20"
+      TZ_REMINDERS: Europe/Rome
+    # Lightweight: shared server
+    mem_limit: 160m
+    volumes:
+      - ./app.mjs:/app/app.mjs:ro
+      - mochi-data:/data
+    networks:
+      - web        # reachable by Caddy
+
+volumes:
+  mochi-data:
+
+networks:
+  web:
+    external: true

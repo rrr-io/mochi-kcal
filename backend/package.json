@@ -1,0 +1,31 @@
+{
+  "name": "mochi-kcal-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "build": "npm run typecheck && esbuild src/index.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/app.mjs --banner:js=\"import { createRequire as __mkRequire } from 'module'; const require = __mkRequire(import.meta.url);\"",
+    "start": "node dist/app.mjs",
+    "vapid": "web-push generate-vapid-keys"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/rate-limit": "^10.2.1",
+    "fastify": "^5.2.0",
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/web-push": "^3.6.4",
+    "esbuild": "^0.24.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.9"
+  },
+  "engines": {
+    "node": ">=22.13"
+  }
+}
